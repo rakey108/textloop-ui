@@ -2,10 +2,7 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 LABEL org.opencontainers.image.source=https://github.com/rakey108/textloop-ui \
-      org.opencontainers.image.maintainer=rakey108 \
-      org.opencontainers.image.description=Next.js UI container for TextLoop \
-      org.opencontainers.image.version=v1.0.0 \
-      org.opencontainers.image.licenses=MIT
+     
 COPY package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
