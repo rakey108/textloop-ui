@@ -1,6 +1,11 @@
 name: Build and Deploy (GHCR)
 
-on: [push,workflow_dispatch]
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
 jobs:
   build:
     runs-on: ubuntu-latest
