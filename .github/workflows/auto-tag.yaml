@@ -1,0 +1,64 @@
+name: Auto Tag on Merge to Main (via PR Label)
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  auto-tag:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Git config
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+      - name: Fetch tags
+        run: git fetch --tags
+
+      - name: Get latest semver tag
+        id: latest_tag
+        run: |
+          latest=$(git tag --sort=-v:refname | grep '^v' | head -n 1 || echo "v0.0.0")
+          echo "latest_tag=$latest" >> $GITHUB_OUTPUT
+
+      - name: Determine bump type from label
+        id: bump_type
+        run: |
+          TYPE="patch"  # default
+          for label in "${{ toJson(github.event.pull_request.labels) }}"; do
+            if [[ $label == *release:major* ]]; then TYPE="major"; fi
+            if [[ $label == *release:minor* ]]; then TYPE="minor"; fi
+            if [[ $label == *release:patch* ]]; then TYPE="patch"; fi
+          done
+          echo "bump=$TYPE" >> $GITHUB_OUTPUT
+
+      - name: Calculate new tag version
+        id: bump
+        run: |
+          version="${{ steps.latest_tag.outputs.latest_tag }}"
+          IFS='.' read -r MAJOR MINOR PATCH <<<"${version#v}"
+
+          case "${{ steps.bump_type.outputs.bump }}" in
+            major)
+              MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor)
+              MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch)
+              PATCH=$((PATCH+1)) ;;
+          esac
+
+          new_tag="v$MAJOR.$MINOR.$PATCH"
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+
+      - name: Create and push new tag
+        run: |
+          git tag ${{ steps.bump.outputs.new_tag }}
+          git push origin ${{ steps.bump.outputs.new_tag }}
