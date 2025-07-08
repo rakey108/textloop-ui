@@ -1,11 +1,7 @@
 name: Build and Deploy (GHCR)
 
 on: [push,workflow_dispatch]
-
 jobs:
-  # -------------------
-  # 1️⃣ BUILD JOB
-  # -------------------
   build:
     runs-on: ubuntu-latest
 
@@ -24,8 +20,12 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
 
       - name: Extract Git tag version
-        id: tag
-        run: echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          else
+            echo "TAG=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          fi
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -37,16 +37,18 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ env.TAG }}
 
-  # -------------------
-  # 2️⃣ DEPLOY JOB
-  # -------------------
   deploy:
-    needs: build   # 🧠 Run only after build
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
       - name: Extract Git tag again
-        run: echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          else
+            echo "TAG=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          fi
 
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.0
@@ -55,8 +57,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin docker pull ghcr.io/${{ github.repository }}:${{ env.TAG }}
+            echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
             docker pull ghcr.io/${{ github.repository }}:${{ env.TAG }}
+
             docker stop textloop-ui || true
             docker rm textloop-ui || true
+
             docker run -d --name textloop-ui -p 3000:3000 ghcr.io/${{ github.repository }}:${{ env.TAG }}
