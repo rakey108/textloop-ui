@@ -1,8 +1,12 @@
 name: Build and Deploy (GHCR)
 
 on: [push,workflow_dispatch]
+
 jobs:
-  build-and-deploy:
+  # -------------------
+  # 1️⃣ BUILD JOB
+  # -------------------
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,14 +27,28 @@ jobs:
         id: tag
         run: echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-      - name: Build and push image using Docker action
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ env.TAG }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.TAG }}
 
-      - name: Deploy to VPS
+  # -------------------
+  # 2️⃣ DEPLOY JOB
+  # -------------------
+  deploy:
+    needs: build   # 🧠 Run only after build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract Git tag again
+        run: echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+      - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
