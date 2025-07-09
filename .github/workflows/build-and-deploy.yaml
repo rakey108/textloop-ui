@@ -4,8 +4,9 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - main
+  repository_dispatch:
+    types: [trigger-deploy]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,13 +25,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Extract Git tag version
+      - name: Set TAG from context
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          if [[ "${GITHUB_EVENT_NAME}" == "repository_dispatch" ]]; then
+            echo "TAG=${{ github.event.client_payload.tag }}" >> $GITHUB_ENV
           else
-            echo "TAG=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-          fi
+            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Debug - Show TAG
+        run: echo "🏷️ TAG being used for build: $TAG"
+
+      - name: Debug - Full image tag
+        run: echo "🐳 Image to be built: ghcr.io/${{ github.repository }}:${{ env.TAG }}"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -47,13 +53,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Extract Git tag again
+      - name: Set TAG from context
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          if [[ "${GITHUB_EVENT_NAME}" == "repository_dispatch" ]]; then
+            echo "TAG=${{ github.event.client_payload.tag }}" >> $GITHUB_ENV
           else
-            echo "TAG=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-          fi
+            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Debug - Show TAG
+        run: echo "📦 TAG being used for deployment: $TAG"
+
+      - name: Debug - Full image tag
+        run: echo "🚢 Image to deploy: ghcr.io/${{ github.repository }}:${{ env.TAG }}"
 
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.0
@@ -63,10 +74,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
             docker pull ghcr.io/${{ github.repository }}:${{ env.TAG }}
-
             docker stop textloop-ui || true
             docker rm textloop-ui || true
-
             docker run -d --name textloop-ui -p 3000:3000 ghcr.io/${{ github.repository }}:${{ env.TAG }}
