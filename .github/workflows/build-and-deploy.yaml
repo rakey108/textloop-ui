@@ -27,17 +27,12 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
 
       - name: Set TAG from context
-        run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "repository_dispatch" ]]; then
-            echo "TAG=${{ github.event.client_payload.tag }}" >> $GITHUB_ENV
-          else
-            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          fi
+        run: echo "TAG=${{ github.event.client_payload.tag || github.ref_name }}" >> $GITHUB_ENV
+
       - name: Debug - Show TAG
         run: |
-           echo "🏷 TAG being used for build: $TAG"
-        env:
-          TAG: ${{ env.TAG }}
+          echo "🏷 TAG being used for build: ${{ env.TAG }}"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -55,17 +50,12 @@ jobs:
 
     steps:
       - name: Set TAG from context
-        run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "repository_dispatch" ]]; then
-            echo "TAG=${{ github.event.client_payload.tag }}" >> $GITHUB_ENV
-          else
-            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          fi
+        run: echo "TAG=${{ github.event.client_payload.tag || github.ref_name }}" >> $GITHUB_ENV
+
       - name: Debug - Show TAG
         run: | 
-          echo "🏷 TAG being used for deploy: $TAG"
-        env:
-          TAG: ${{ env.TAG }}
+          echo "🏷 TAG being used for deploy: ${{ env.TAG }}"
+          
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
