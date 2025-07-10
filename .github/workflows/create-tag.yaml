@@ -69,7 +69,6 @@ jobs:
         run: |
           prev_tag="${{ steps.get_tag.outputs.latest }}"
           echo "Previous tag: $prev_tag"
-
           changelog=$(git log "$prev_tag"..HEAD --pretty=format:"- %s" || echo "No changes found.")
           echo "$changelog"
 
@@ -77,9 +76,7 @@ jobs:
           changelog_escaped="${changelog//'%'/'%25'}"
           changelog_escaped="${changelog_escaped//$'\n'/'%0A'}"
           changelog_escaped="${changelog_escaped//$'\r'/'%0D'}"
-
           echo "changelog=$changelog_escaped" >> $GITHUB_OUTPUT
-
       - name: Create and push new tag
         run: |
           git tag ${{ steps.calc_tag.outputs.tag }}
