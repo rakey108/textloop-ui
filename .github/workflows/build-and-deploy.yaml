@@ -34,7 +34,8 @@ jobs:
             echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Debug - Show TAG
-        run: echo "🏷 TAG being used for build: $TAG"
+        run: |
+             echo "🏷 TAG being used for build: $TAG"
         env:
           TAG: ${{ env.TAG }}
 
@@ -62,7 +63,8 @@ jobs:
             echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Debug - Show TAG
-        run: echo "🏷 TAG being used for deploy: $TAG"
+        run: | 
+            echo "🏷 TAG being used for deploy: $TAG"
         env:
           TAG: ${{ env.TAG }}
 
