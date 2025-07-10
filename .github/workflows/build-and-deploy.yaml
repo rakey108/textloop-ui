@@ -35,7 +35,7 @@ jobs:
           fi
       - name: Debug - Show TAG
         run: |
-             echo "🏷 TAG being used for build: $TAG"
+           echo "🏷 TAG being used for build: $TAG"
         env:
           TAG: ${{ env.TAG }}
       - name: Build and push Docker image
@@ -66,7 +66,6 @@ jobs:
           echo "🏷 TAG being used for deploy: $TAG"
         env:
           TAG: ${{ env.TAG }}
-
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
