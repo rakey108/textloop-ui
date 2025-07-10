@@ -32,10 +32,11 @@ jobs:
             echo "TAG=${{ github.event.client_payload.tag }}" >> $GITHUB_ENV
           else
             echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          fi
 
       - name: Debug - Show TAG
         run: |
-             echo "🏷 TAG being used for build: $TAG"
+           echo "🏷 TAG being used for build: $TAG"
         env:
           TAG: ${{ env.TAG }}
 
@@ -61,10 +62,11 @@ jobs:
             echo "TAG=${{ github.event.client_payload.tag }}" >> $GITHUB_ENV
           else
             echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          fi
 
       - name: Debug - Show TAG
         run: | 
-            echo "🏷 TAG being used for deploy: $TAG"
+          echo "🏷 TAG being used for deploy: $TAG"
         env:
           TAG: ${{ env.TAG }}
 
