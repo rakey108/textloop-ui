@@ -16,16 +16,26 @@ on:
 jobs:
   tag:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Required to access tags
+          fetch-depth: 0  # Required for tags and history
 
-      - name: Set up Git
+      - name: Set up Git config
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+
+      - name: Ensure branch is main
+        run: |
+          current_branch=$(git rev-parse --abbrev-ref HEAD)
+          echo "Current branch: $current_branch"
+          if [ "$current_branch" != "main" ]; then
+            echo "❌ Tags can only be created from the main branch."
+            exit 1
+          fi
 
       - name: Fetch all tags
         run: git fetch --tags
@@ -34,7 +44,6 @@ jobs:
         id: get_tag
         run: |
           latest=$(git tag --sort=-v:refname | grep '^v' | head -n1 || echo "v0.0.0")
-          echo "Latest tag: $latest"
           echo "latest=$latest" >> $GITHUB_OUTPUT
 
       - name: Calculate next tag
@@ -53,10 +62,28 @@ jobs:
           esac
 
           new_tag="v$major.$minor.$patch"
-          echo "New tag: $new_tag"
           echo "tag=$new_tag" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          prev_tag="${{ steps.get_tag.outputs.latest }}"
+          echo "Previous tag: $prev_tag"
+          git log "$prev_tag"..HEAD --pretty=format:"- %s" > changelog.txt || echo "No changes found."
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat changelog.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create and push new tag
         run: |
           git tag ${{ steps.calc_tag.outputs.tag }}
           git push origin ${{ steps.calc_tag.outputs.tag }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.calc_tag.outputs.tag }}
+          name: Release ${{ steps.calc_tag.outputs.tag }}
+          body: ${{ steps.changelog.outputs.changelog }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
