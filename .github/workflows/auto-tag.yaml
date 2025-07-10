@@ -20,45 +20,53 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
-      - name: Fetch tags
+      - name: Fetch all tags
         run: git fetch --tags
 
       - name: Get latest semver tag
         id: latest_tag
         run: |
           latest=$(git tag --sort=-v:refname | grep '^v' | head -n 1 || echo "v0.0.0")
+          echo "✅ Latest tag found: $latest"
           echo "latest_tag=$latest" >> $GITHUB_OUTPUT
 
-      - name: Determine bump type from label
+      - name: Determine bump type from PR label
         id: bump_type
         run: |
-          TYPE="patch"  # default
-          for label in "${{ toJson(github.event.pull_request.labels) }}"; do
+          TYPE="patch"
+          for label in ${{ toJson(github.event.pull_request.labels) }}; do
             if [[ $label == *release:major* ]]; then TYPE="major"; fi
             if [[ $label == *release:minor* ]]; then TYPE="minor"; fi
             if [[ $label == *release:patch* ]]; then TYPE="patch"; fi
           done
+          echo "📌 Bump type selected: $TYPE"
           echo "bump=$TYPE" >> $GITHUB_OUTPUT
 
-      - name: Calculate new tag version
+      - name: Calculate new tag
         id: bump
         run: |
           version="${{ steps.latest_tag.outputs.latest_tag }}"
           IFS='.' read -r MAJOR MINOR PATCH <<<"${version#v}"
 
           case "${{ steps.bump_type.outputs.bump }}" in
-            major)
-              MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
-            minor)
-              MINOR=$((MINOR+1)); PATCH=0 ;;
-            patch)
-              PATCH=$((PATCH+1)) ;;
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
           esac
 
           new_tag="v$MAJOR.$MINOR.$PATCH"
+          echo "🔖 New tag calculated: $new_tag"
           echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
 
       - name: Create and push new tag
         run: |
+          echo "🚀 Creating and pushing tag: ${{ steps.bump.outputs.new_tag }}"
           git tag ${{ steps.bump.outputs.new_tag }}
           git push origin ${{ steps.bump.outputs.new_tag }}
+
+      - name: Trigger build-and-deploy workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: trigger-deploy
+          client-payload: '{"tag": "${{ steps.bump.outputs.new_tag }}"}'
