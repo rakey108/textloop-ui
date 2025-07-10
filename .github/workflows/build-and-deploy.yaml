@@ -30,8 +30,10 @@ jobs:
         run: echo "TAG=${{ github.event.client_payload.tag || github.ref_name }}" >> $GITHUB_ENV
 
       - name: Debug - Show TAG
-        run: |
-          echo "🏷 TAG being used for build: ${{ env.TAG }}"
+        run: | 
+          echo "🏷 TAG being used for build: $TAG"
+        env:
+          TAG: ${{ env.TAG }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -54,8 +56,10 @@ jobs:
 
       - name: Debug - Show TAG
         run: | 
-          echo "🏷 TAG being used for deploy: ${{ env.TAG }}"
-          
+          echo "🏷 TAG being used for deploy: $TAG"
+        env:
+          TAG: ${{ env.TAG }}
+
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
