@@ -21,9 +21,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Required for tags and history
+          fetch-depth: 0  # Needed to access full Git history & tags
 
-      - name: Set up Git config
+      - name: Set up Git
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
@@ -69,10 +69,16 @@ jobs:
         run: |
           prev_tag="${{ steps.get_tag.outputs.latest }}"
           echo "Previous tag: $prev_tag"
-          git log "$prev_tag"..HEAD --pretty=format:"- %s" > changelog.txt || echo "No changes found."
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          cat changelog.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+
+          changelog=$(git log "$prev_tag"..HEAD --pretty=format:"- %s" || echo "No changes found.")
+          echo "$changelog"
+
+          # Escape newlines for GitHub Actions
+          changelog_escaped="${changelog//'%'/'%25'}"
+          changelog_escaped="${changelog_escaped//$'\n'/'%0A'}"
+          changelog_escaped="${changelog_escaped//$'\r'/'%0D'}"
+
+          echo "changelog=$changelog_escaped" >> $GITHUB_OUTPUT
 
       - name: Create and push new tag
         run: |
